@@ -22,5 +22,9 @@
         <result property="birthday" column="birthday"/>
     </resultMap>
 
+    <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="integer">
+      select * from users where id=#{id}
+    </select>
+
 
 </mapper>

@@ -2,11 +2,17 @@
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+
 <configuration>
 
     <!--加载类路径下的配置文件-->
     <properties resource="config/db.properties"/>
 
+    <!--配置mybatis打印sql-->
+    <settings>
+        <setting name="logImpl" value="STDOUT_LOGGING" />
+    </settings>
     <!-- 设置一个默认的连接环境信息 -->
     <environments default="mysql_development">
 
@@ -22,9 +28,13 @@
                 <property name="url" value="${mysql_jdbcUrl}"/>
                 <property name="driver" value="${mysql_driverClass}"/>
             </dataSource>
+
         </environment>
+
     </environments>
+
     <mappers>
-        <!--<mapper resource="org/mybatis/example/BlogMapper.xml"/>-->
+        <mapper resource="mapper/Users.xml"/>
     </mappers>
+
 </configuration>
