@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <!--加载类路径下的配置文件-->
+    <properties resource="config/db.properties"/>
+
+    <!-- 设置一个默认的连接环境信息 -->
+    <environments default="mysql_development">
+
+        <!-- 连接环境信息，mysql环境 -->
+        <environment id="mysql_development">
+            <!-- mybatis使用jdbc事务管理方式 -->
+            <transactionManager type="JDBC"/>
+            <!-- mybatis使用连接池方式来获取连接 -->
+            <dataSource type="POOLED">
+                <!-- 配置与数据库交互的4个必要属性 -->
+                <property name="username" value="${mysql_username}"/>
+                <property name="password" value="${mysql_password}"/>
+                <property name="url" value="${mysql_jdbcUrl}"/>
+                <property name="driver" value="${mysql_driverClass}"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <!--<mapper resource="org/mybatis/example/BlogMapper.xml"/>-->
+    </mappers>
+</configuration>
