@@ -16,4 +16,13 @@ public interface UsersMapper {
      * @date: 2019/8/15 19:08
      **/
     Users selectByPrimaryKey(int id);
+
+    /**
+     * @Description: 更新用户信息
+     * @param users 1
+     * @return: int
+     * @auther: xianzilei
+     * @date: 2019/8/16 8:48
+     **/
+    int updateByPrimaryKey(Users users);
 }

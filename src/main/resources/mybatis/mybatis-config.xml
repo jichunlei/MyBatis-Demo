@@ -6,16 +6,34 @@
 
 <configuration>
 
-    <!--加载类路径下的配置文件-->
+    <!--加载类路径下的配置文件
+        resource：表示类路径下（常用）
+        url:磁盘或者网络路径
+    -->
     <properties resource="config/db.properties"/>
 
-    <!--配置mybatis打印sql-->
+    <!--改变mybatis一些基本设置-->
     <settings>
+        <!--配置mybatis打印sql-->
         <setting name="logImpl" value="STDOUT_LOGGING" />
+        <!--设置mybatis字段下划线格式和驼峰格式的自动转换-->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
     </settings>
+
+    <!--配置别名-->
+    <typeAliases>
+        <!--指定单个类的别名
+            type：类型
+            alias：别名（不区分大小写）-->
+        <!--<typeAlias type="cn.jicl.entity.Users" alias="users"/>-->
+        <!---->
+
+        <!--配置包扫描下的所有的别名，别名默认为bean名（不区分大小写）-->
+        <package name="cn.jicl.entity"/>
+    </typeAliases>
+
     <!-- 设置一个默认的连接环境信息 -->
     <environments default="mysql_development">
-
         <!-- 连接环境信息，mysql环境 -->
         <environment id="mysql_development">
             <!-- mybatis使用jdbc事务管理方式 -->
@@ -33,6 +51,7 @@
 
     </environments>
 
+    <!--将配置文件和映射文件关联起来-->
     <mappers>
         <mapper resource="mapper/Users.xml"/>
     </mappers>

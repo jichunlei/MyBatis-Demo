@@ -22,9 +22,29 @@
         <result property="birthday" column="birthday"/>
     </resultMap>
 
-    <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="integer">
-      select * from users where id=#{id}
+    <!--更新用户信息-->
+    <!--增删改sql无需写返回值类型-->
+    <select id="selectByPrimaryKey" resultType="UseRs" parameterType="integer">
+        <!--sql语句不用写分号-->
+        select * from users where id=#{id}
     </select>
 
-
+    <!--查询用户信息-->
+    <!--parameterType：可以不用写-->
+    <update id="updateByPrimaryKey">
+        update users set
+        <if test="name!=null">
+            name=#{name},
+        </if>
+        <if test="password!=null">
+            password=#{password},
+        </if>
+        <if test="email!=null">
+            email=#{email},
+        </if>
+        <if test="birthday!=null">
+            birthday=#{birthday},
+        </if>
+        where id=#{id}
+    </update>
 </mapper>
