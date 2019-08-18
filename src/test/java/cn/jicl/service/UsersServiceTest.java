@@ -22,7 +22,7 @@ public class UsersServiceTest {
     @Test
     public void test01() throws IOException {
         //1、加载mybatis的全局配置文件
-        String resource= "mybatis/mybatis-config.xml";
+        String resource = "mybatis/mybatis-config.xml";
         Reader reader = Resources.getResourceAsReader(resource);
 
         //2、创建一个sqlSessionFactory：sqlSession工厂，负责sqlSession的创建
@@ -39,6 +39,45 @@ public class UsersServiceTest {
             Users user = usersMapper.selectByPrimaryKey(2);
             System.out.println(user);
         }
+    }
 
+    /**
+     * @Description: 体会Mybatis的一级缓存
+     * @return: void
+     * @auther: xianzilei
+     * @date: 2019/8/18 18:29
+     **/
+    @Test
+    public void test02() throws IOException {
+        //1、加载mybatis的全局配置文件
+        String resource = "mybatis/mybatis-config.xml";
+        Reader reader = Resources.getResourceAsReader(resource);
+
+        //2、创建一个sqlSessionFactory：sqlSession工厂，负责sqlSession的创建
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(reader);
+
+        //3、获取sqlSession：和数据库的一次会话
+        SqlSession sqlSession = sqlSessionFactory.openSession();
+        //4、获取mapper的实现类
+        UsersMapper usersMapper = sqlSession.getMapper(UsersMapper.class);
+        System.out.println(usersMapper);
+
+        //5、调用sql
+        //第一次调用查询，先去缓存则查询是否存在，不存在则取数据库查询
+        Users user = usersMapper.selectByPrimaryKey(2);
+        System.out.println(user);
+        System.out.println("=======================================");
+        //第二次调用同样查询，缓存则存在，则不会查询数据库，直接取缓存中的数据
+        Users user2 = usersMapper.selectByPrimaryKey(2);
+        System.out.println(user2);
+        System.out.println(user == user2);
+        System.out.println("=======================================");
+        //提交事务，会清空sqlSession的一级缓存。避免脏毒
+        sqlSession.commit();
+        //第三次调用查询，因为一级缓存被清空，所有回去数据库中查询
+        Users user3 = usersMapper.selectByPrimaryKey(2);
+        System.out.println(user3);
+        System.out.println(user==user3);
+        sqlSession.close();
     }
 }

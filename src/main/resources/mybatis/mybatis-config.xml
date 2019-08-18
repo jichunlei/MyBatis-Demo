@@ -18,6 +18,7 @@
         <setting name="logImpl" value="STDOUT_LOGGING" />
         <!--设置mybatis字段下划线格式和驼峰格式的自动转换-->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
+
     </settings>
 
     <!--配置别名-->
@@ -53,7 +54,8 @@
 
     <!--将配置文件和映射文件关联起来-->
     <mappers>
-        <mapper resource="mapper/Users.xml"/>
+        <!--批量扫描-->
+        <package name="cn.jicl.mapper"/>
     </mappers>
 
 </configuration>
