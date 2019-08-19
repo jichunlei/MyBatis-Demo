@@ -80,4 +80,39 @@ public class UsersServiceTest {
         System.out.println(user==user3);
         sqlSession.close();
     }
+
+    /**
+     * @Description: 体会Mybatis的二级缓存
+     * @return: void
+     * @auther: xianzilei
+     * @date: 2019/8/18 18:29
+     **/
+    @Test
+    public void test03() throws IOException {
+        //1、加载mybatis的全局配置文件
+        String resource = "mybatis/mybatis-config.xml";
+        Reader reader = Resources.getResourceAsReader(resource);
+
+        //2、创建一个sqlSessionFactory：sqlSession工厂，负责sqlSession的创建
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(reader);
+
+        //3、获取sqlSession：和数据库的一次会话
+        SqlSession sqlSession1 = sqlSessionFactory.openSession();
+        SqlSession sqlSession2 = sqlSessionFactory.openSession();
+        //4、获取mapper的实现类
+        UsersMapper usersMapper1 = sqlSession1.getMapper(UsersMapper.class);
+        UsersMapper usersMapper2 = sqlSession1.getMapper(UsersMapper.class);
+
+        //5、调用sql
+        System.out.println("=========sqlSession1查询1号用户======");
+        Users user1 = usersMapper1.selectByPrimaryKey(1);
+        System.out.println(user1);
+        sqlSession1.commit();
+        System.out.println("=========sqlSession2查询1号用户======");
+        Users user2 = usersMapper2.selectByPrimaryKey(1);
+        System.out.println(user2);
+        System.out.println(user1 == user2);
+        sqlSession1.close();
+        sqlSession2.close();
+    }
 }

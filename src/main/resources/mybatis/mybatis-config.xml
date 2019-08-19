@@ -18,7 +18,8 @@
         <setting name="logImpl" value="STDOUT_LOGGING" />
         <!--设置mybatis字段下划线格式和驼峰格式的自动转换-->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
-
+        <!--开启全局缓存开关（默认开启）-->
+        <setting name="cacheEnabled" value="true"/>
     </settings>
 
     <!--配置别名-->

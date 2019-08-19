@@ -1025,7 +1025,7 @@ public class UsersServiceTest {
 
 ##### 6.2.1.1、一级缓存简介
 
-* 一级缓存基于PrepetualCache的HashMap本地缓存，其存储作用域为Session，位于表示一次数据库会话的**SqlSession**对象之中
+* 一级缓存基于PrepetualCache的HashMap本地缓存，其存储作用域为Session，位于表示一次数据库会话的**SqlSession**对象之中，不同的SqlSession不共享一级缓存，类似线程的ThreadLocal。
 
 * 每当我们使用MyBatis开启一次和数据库的会话，MyBatis会创建出一个SqlSession对象表示一次数据库会话。在对数据库的一次会话中，我们有可能会反复地执行完全相同的查询语句，如果不采取一些措施的话，每一次查询都会查询一次数据库，而我们在极短的时间内做了完全相同的查询，那么它们的结果极有可能完全相同，由于查询一次数据库的代价很大，这有可能造成很大的资源浪费
 
@@ -1065,8 +1065,10 @@ public class UsersServiceTest {
       System.out.println(user2);
       System.out.println(user == user2);//返回true
       System.out.println("=======================================");
-      //提交事务，会清空sqlSession的一级缓存。避免脏毒
+      //提交事务或执行一次增删改操作或手动清缓存，会清空sqlSession的一级缓存。避免脏读
       sqlSession.commit();
+      //usersMapper.updateUsers(Users users);
+      //sqlSession.clearCache();
       //第三次调用查询，因为一级缓存被清空，所有回去数据库中查询
       Users user3 = usersMapper.selectByPrimaryKey(2);
       System.out.println(user3);
@@ -1074,3 +1076,182 @@ public class UsersServiceTest {
       sqlSession.close();
   }
   ```
+
+##### 6.2.1.2、一级缓存实现
+
+* 当创建了一个SqlSession对象时，MyBatis会为这个SqlSession对象创建一个新的Executor执行器，而缓存信息就被维护在这个Executor执行器中，MyBatis将缓存和对缓存相关的操作封装成了Cache接口中。
+
+* Executor接口的实现类BaseExecutor中拥有一个Cache接口的实现类PerpetualCache，则对于BaseExecutor对象而言，它将使用PerpetualCache对象维护缓存。
+
+* 综上，SqlSession对象、Executor对象、Cache对象之间的关系如下图所示
+
+  ![](D:\IDEA\GitRepositories\MyBatis-Demo\note\SqlSession、Executor及Cache之间的关系.PNG)
+
+##### 6.2.1.3、一级缓存生命周期
+
+* **MyBatis在开启一个数据库会话时，会创建一个新的SqlSession**对象，**SqlSession**对象中会有一个新的**Executor**对象，**Executor**对象中持有一个新的**PerpetualCache**对象；当会话结束时，**SqlSession**对象及其内部的**Executor**对象还有**PerpetualCache**对象也一并释放掉。
+* **如果SqlSession**调用了**close()**方法，会释放掉一级缓存**PerpetualCache**对象，一级缓存将不可用。
+* 如果**SqlSession**调用了**clearCache()**，会清空**PerpetualCache**对象中的数据，但是该对象仍可使用。
+* **SqlSession**中执行了任何一个**update操作(update()、delete()、insert()) ，都会清空PerpetualCache**对象的数据，但是该对象可以继续使用。
+
+##### 6.2.1.4、一级缓存的工作流程
+
+1. 对于某个查询，根据**statementId,params,rowBounds**来构建一个**key**值，根据这个**key**值去缓存**Cache**中取出对应的**key**值存储的缓存结果；
+
+2. 判断从**Cache**中根据特定的**key**值取的数据数据是否为空，即是否命中；
+
+3.  如果命中，则直接将缓存结果返回；
+
+4. 如果没命中：
+
+   ​		4.1  去数据库中查询数据，得到查询结果；
+
+   ​        4.2  将key和查询到的结果分别作为**key**,**value**对存储到**Cache**中；
+
+   ​        4.3. 将查询结果返回。
+
+5. 结束。
+
+##### 6.2.1.5、一级缓存的性能分析
+
+* Cache本质上就是一个Map，将本次查询使用的特征值作为key，将查询结果作为value存储到Map中。MyBatis只负责将查询数据库的结果存储到缓存中去， 不会去判断缓存存放的时间是否过长、是否过期，因此也就没有对缓存的结果进行更新这一说法。
+
+  ```java
+  /**
+   * PerpetualCache类
+   */
+  public class PerpetualCache implements Cache {
+      //缓存的本质：HashMap
+      private Map<Object, Object> cache = new HashMap<Object, Object>();
+  
+      //将数据放入缓存中
+      //key：hashCode+查询的sqlId+编写的sql查询语句+参数
+      //即：statementId  + rowBounds  + 传递给JDBC的SQL  + 传递给JDBC的参数值
+      @Override
+      public void putObject(Object key, Object value) {
+          cache.put(key, value);
+      }
+      
+  	//从缓存中查找数据
+      @Override
+      public Object getObject(Object key) {
+          return cache.get(key);
+      }
+  
+      //将某个对象从缓存中移除
+      @Override
+      public Object removeObject(Object key) {
+          return cache.remove(key);
+      }
+  
+      //清除所有缓存
+      @Override
+      public void clear() {
+          cache.clear();
+      }
+  }
+  ```
+
+* Mybatis并没有对HashMap的容量和大小进行限制，有可能导致OutOfMemoryError错误。但是MyBatis这样设计也有它自己的理由：
+  * 一般而言SqlSession的生存时间很短。一般情况下使用一个SqlSession对象执行的操作不会太多，执行完就会消亡；
+  *  对于某一个SqlSession对象而言，只要执行update操作（update、insert、delete），都会将这个SqlSession对象中对应的一级缓存清空掉，所以一般情况下不会出现缓存过大，影响JVM内存空间的问题；
+  * 可以手动地释放掉SqlSession对象中的缓存。
+
+#### 6.2.2、二级缓存
+
+##### 6.2.2.1、二级缓存的介绍
+
+* 二级缓存和一级缓存的机制相同，默认也是采用PrepetualCache、HashMap存储；
+* 但是二级缓存是Application应用级别的缓存，生命周期同Application，作用于整个Application应用。
+* 二级缓存是在SqlSession关闭或者提交时才会生效。
+
+##### 6.2.2.2、二级缓存的划分
+
+* 二级缓存的划分比一级缓存更为细致，即每个Mapper(nameSpace)都可以拥有一个Cache对象
+
+  * 为每一个Mapper分配一个缓存对象（使用<cache>标签）
+
+    * MyBatis将Application级别的二级缓存细分到Mapper级别，即对于每一个Mapper.xml，如果在其中使用了<cache> 节点，则MyBatis会为这个Mapper创建一个Cache缓存对象
+
+      ```xml
+      <mapper namespace="cn.jicl.mapper.UsersMapper">
+      	<!--执行配置这一句即可-->
+          <cache/>
+      </mapper>
+      ```
+
+    * cache标签属性
+      * type：配置自定义Cache接口实现类
+      * eviction：缓存回收策略
+        * LRU（默认）：最近最少使用，移除最长时间不被使用的对象
+        * FIFO：先进先出，按对象进入缓存的顺序来移除
+        * SOFT：软引用，移除基于垃圾回收器状态和软引用规则的对象
+        * WEAK：弱引用，移除基于垃圾回收器状态和弱引用规则的对象
+      * flushInterval：刷新间隔，单位毫秒
+      * readOnly：只读，true/false，默认false
+        * true：只读缓存，会给所有调用者返回缓存对象的相同实例，即直接将引用传递给调用者，在性能上有很大优势，但是不够安全，需保证这些对象不能被改变。
+        * false：读写缓存，会返回缓存对象的拷贝（通过序列化）。性能上稍差一些，但是很安全。
+      * size：引用数目（正整数），代表缓存最多可以存放多少个对象。
+
+  * 多个Mapper共用一个Cache缓存对象（使用<cache-ref>标签）
+
+    * 如果你想让多个Mapper公用一个Cache的话，你可以使用<cache-ref namespace="">节点，来指定你的这个Mapper使用到了哪一个Mapper的Cache缓存。
+
+      ```xml
+      <mapper namespace="cn.jicl.mapper.OrdersMapper">
+      	<!--引用UsersMapper的缓存-->
+          <cache-ref namespace="cn.jicl.mapper.UsersMapper"/>
+      </mapper>
+      ```
+
+    * cache-ref属性
+      * namespace：引用的命名空间
+
+  * 前提
+
+    * 需开启全局缓存开关：Mybatis全局配置中（虽然默认开启，但是还是建议配置一下）
+
+      ```xml
+      <!--开启全局缓存开关（默认开启）-->
+      <setting name="cacheEnabled" value="true"/>
+      ```
+
+    * select语句的参数需加上useCache=true（目前来看应该不用配置了，默认为true）
+
+      ```xml
+      <!--需要配置useCache="true"-->
+      <select id="selectByPrimaryKey" useCache="true" resultType="cn.jicl.entity.Users" parameterType="integer">
+          select * from users where id=#{id}
+      </select>
+      ```
+
+      
+
+##### 6.2.2.2、一级缓存和二级缓存的使用顺序
+
+* 顺序：二级缓存-->一级缓存-->数据库
+
+* 注：不会出现一级缓存和二级缓存有同一个数据
+
+  * 二级缓存出现是在sqlsession提交或关闭才出现，且此时一级缓存被清理了
+
+  * 查数据先去二级缓存中取，如果二级缓存没有则找一级缓存，一级缓存没有才查询数据库，数据库提交后数据才进入到二级缓存。
+
+##### 6.2.2.3、Mybatis关于缓存的配置
+
+* 全局setting的cacheEnable
+  * 配置二级缓存的开关，一级缓存一直打开；
+
+* select标签的useCache属性
+  * 配置这个select是否使用二级缓存，一级缓存一直使用；
+
+* sql标签的flushCache属性
+  * 增删改默认flushCache=true，sql执行以后，会同时清空一级和二级缓存。
+  * 查询默认flushCache=false，当设置为true，相当于查询操作时关闭了一级和二级缓存。
+
+* sqlSession.clearCache();
+  * 只是用来清除一级缓存
+
+* 当在某一个作用域（一级缓存Session、二级缓存Namespace）进行了C/U/D操作后，默认该作用域下所有select中的缓存将被clear。
+
+##### 6.2.2.4、Mybatis二级缓存原理（待看）

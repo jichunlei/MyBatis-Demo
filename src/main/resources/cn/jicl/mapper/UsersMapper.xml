@@ -5,6 +5,8 @@
 <!-- namespace属性是名称空间，必须唯一 -->
 <mapper namespace="cn.jicl.mapper.UsersMapper">
 
+    <!--开启该mapper的二级缓存-->
+    <cache/>
     <!-- resultMap标签:映射实体与表
          type属性：表示实体全路径名
          id属性：为实体与表的映射取一个任意的唯一的名字
